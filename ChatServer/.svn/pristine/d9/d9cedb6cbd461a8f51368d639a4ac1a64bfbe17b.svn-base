@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="ChatServer/src"/>
+	<classpathentry kind="src" path="Ressources"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="D:/Dorian/ECE/ING4/semester 2/Réseaux/Projet Chat/jgroups-3.4.3.Final.jar"/>
+	<classpathentry kind="output" path="ChatServer/bin"/>
+</classpath>

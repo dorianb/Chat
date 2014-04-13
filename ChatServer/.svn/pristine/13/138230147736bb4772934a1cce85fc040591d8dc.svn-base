@@ -1,0 +1,385 @@
+package ChatServer;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.JOptionPane;
+
+public class ServerController implements TransportReceiver
+{
+	private final static String chatControlCluster = "ControlCluster";	
+	private TransportDriver transportDriver;
+	private ServerMainFrame theServerMainFrame;
+	
+	private List<String> connectedUserList;
+	private List<ChatRoom> chatRoomList;
+	
+	public ServerController(ServerMainFrame theServerMainFrame)
+	{
+		this.theServerMainFrame = theServerMainFrame;
+		this.transportDriver = new TransportDriver(chatControlCluster, this);
+		
+		this.connectedUserList = new ArrayList<String>();
+		this.chatRoomList = new ArrayList<ChatRoom>();
+		
+		this.theServerMainFrame.addServerMainFrameListener(new ServerMainFrameListener());
+	}
+	
+	//accessors
+	public ServerMainFrame getServerMainFrame()
+	{
+		return this.theServerMainFrame;
+	}
+	public TransportDriver getTransportDriver()
+	{
+		return this.transportDriver;
+	}
+	public List<String> getConnectedUserList()
+	{
+		return this.connectedUserList;
+	}
+	public List<ChatRoom> getChatRoomList()
+	{
+		return this.chatRoomList;
+	}
+	
+	//mutators
+	public void setServerMainFrame(ServerMainFrame theServerMainFrame)
+	{
+		this.theServerMainFrame = theServerMainFrame;
+	}
+	public void setTransportDriver(TransportDriver transportDriver)
+	{
+		this.transportDriver = transportDriver;
+	}
+	public void setConnectedUserList(List<String> connectedUserList)
+	{
+		this.connectedUserList = connectedUserList;
+	}
+	public void setChatRoomList(List<ChatRoom> chatRoomList)
+	{
+		this.chatRoomList = chatRoomList;
+	}
+	
+	private boolean chatRoomExists(String name)
+	{
+		for(int i=0; i<this.getChatRoomList().size(); i++)
+		{
+			if(this.getChatRoomList().get(i).getName().equals(name))
+			{
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	private int getChatRoomIndex(String name)
+	{
+		for(int i=0; i<this.getChatRoomList().size(); i++)
+		{
+			if(this.getChatRoomList().get(i).getName().equals(name))
+			{
+				return i;
+			}
+		}
+		
+		return -1;
+	}
+	
+	private int getConnectedUserIndex(List<String> userList, String name)
+	{
+		for(int i=0; i<userList.size(); i++)
+		{
+			if( userList.get(i).equals(name) )
+			{
+				return i;
+			}
+		}
+		
+		return -1;
+	}
+	
+	//mettre à jour la MainFrame
+	private void updateView()
+	{
+		this.getServerMainFrame().updateMainPanel(this.chatRoomList, this.connectedUserList);
+	}
+
+	@Override
+	public void receiveChatMessage(MessageChat message) 
+	{
+		// TODO Auto-generated method stub
+		switch(message.getType())
+	   	 {
+	   	 case ConnectionEstablishment:
+	   		 if(!this.getConnectedUserList().contains(message.getContent()))
+	   		 {
+	   			 this.getConnectedUserList().add(message.getContent());
+	   			 
+	   			 this.transportDriver.sendMessage(new MessageChat(MessageType.ConnectionAcknowledgment, "server", message.getContent(), "true"));
+	   		 }
+	   		 else
+	   		 {
+	   			this.transportDriver.sendMessage(new MessageChat(MessageType.ConnectionAcknowledgment, "server", message.getContent(), "false"));
+	   		 }
+	   		 
+	   		 this.updateView();
+	   		 
+	   		 this.sendUpdate();
+	   		 
+	   		 break;
+	   		 
+	   	 case ConnectionAcknowledgment:	 
+	   		 //Client Side
+	   	 break;
+	   	 
+	   	 case ChatRoomsInformationRequest:  		
+	   		 this.sendUpdate(); 
+	   		 break;
+	   		 
+	   	 case AvailableChatRooms:
+	   		 //Client Side
+	   		 break;
+	   		 
+	   	 case ConnectedUsers:
+	   		 //Client Side
+	   		 break;
+	   		 
+	   	 case ChatRoomCreationRequest:
+	   		 if(!this.chatRoomExists(message.getContent()))
+	   		 {
+	   			 ChatRoom newChatRoom = new ChatRoom(message.getContent(), new ArrayList<String>());
+	   			 this.getChatRoomList().add(newChatRoom);
+	   			 this.getChatRoomList().get(this.getChatRoomList().indexOf(newChatRoom)).getConnectedUserList().add(message.getSender());
+	   			 
+	   			 this.transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomCreationAcknowledgment, "server", message.getSender(), message.getContent()));
+	   		 
+	   		     //create ChatRoomController
+		   		 this.theServerMainFrame.getChatRoomControllerList().add(new ChatRoomController(message.getContent(), this.theServerMainFrame));
+	   		 }
+	   		 else
+	   		 {
+	   			 this.transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomCreationAcknowledgment, "server", message.getSender(), "false"));
+	   		 }
+	   		 
+	   		 this.sendUpdate();
+	   		 
+	   		 this.updateView();
+	   		 
+	   		 break;
+	   		 
+	   	 case ChatRoomCreationAcknowledgment:
+	   		 //Client Side
+	   		 break;
+	   		 
+	   	 case ChatRoomJoiningRequest:
+	   		if(this.chatRoomExists(message.getContent()))
+	   		 {
+	   			if(this.getConnectedUserIndex(this.chatRoomList.get(this.getChatRoomIndex(message.getContent())).getConnectedUserList(), message.getSender()) == -1)
+	   			{
+	   				this.getChatRoomList().get(this.getChatRoomIndex(message.getContent())).getConnectedUserList().add(message.getSender());
+		   			 
+		   			 this.transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomJoiningAcknowledgment, "server", message.getSender(), message.getContent()));
+	   			}
+	   			else
+	   			{
+	   				this.transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomJoiningAcknowledgment, "server", message.getSender(), "false"));
+	   			}	
+	   		 }
+	   		 else
+	   		 {
+	   			 this.transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomJoiningAcknowledgment, "server", message.getSender(), "false"));
+	   		 }
+	   		
+	   		 this.sendUpdate();
+	   		
+	   		 this.updateView();
+	   		
+	   		 break;
+	   		 
+	   	 case ChatRoomLeavingRequest:
+	   		 if( this.chatRoomExists(message.getContent()))
+	   		 {
+	   			 if( this.getConnectedUserIndex(this.getChatRoomList().get(this.getChatRoomIndex(message.getContent())).getConnectedUserList(), message.getSender()) != -1)
+	   			 {
+	   				 this.getChatRoomList().get(this.getChatRoomIndex(message.getContent())).getConnectedUserList().remove(this.getChatRoomList().get(this.getConnectedUserIndex(this.getChatRoomList().get(this.getChatRoomIndex(message.getContent())).getConnectedUserList(), message.getSender())));
+	   	   		 
+		   			 this.transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomLeavingAcknowledgment, "server", message.getSender(), message.getContent()));
+	   			 }
+	   			else
+	   			{
+	   				this.transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomLeavingAcknowledgment, "server", message.getSender(), "false"));
+	   			}
+	   		 }
+	   		 else
+	   		 {
+	   			 this.transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomLeavingAcknowledgment, "server", message.getSender(), "false"));
+	   		 }
+	   		 
+	   		 this.sendUpdate();
+	   		 
+	   		 this.updateView();
+	   		 
+	   		 break;
+	   		 
+	   	 case UserLoggingOut:   		 
+	   		 this.getConnectedUserList().remove(this.getConnectedUserIndex(this.getConnectedUserList(), message.getSender()));
+	   		 
+	   		 for(int i=0; i<this.getChatRoomList().size(); i++)
+	   		 {
+	   			 if( this.getConnectedUserIndex(this.getChatRoomList().get(i).getConnectedUserList(), message.getSender()) != -1)
+	   			 {
+	   				this.getChatRoomList().get(i).getConnectedUserList().remove(this.getConnectedUserIndex(this.getChatRoomList().get(i).getConnectedUserList(), message.getSender()));
+	   			 }
+	   		 }
+	   		 
+	   		 this.sendUpdate();
+	   		 
+	   		 this.updateView();
+	   		 
+	   		 break;
+	   		 
+	   	 case UserDataMessage:
+	   		 //Client Side
+	   		 break;	   		 
+	   	 case ServerClosingDown:
+	   		 //Client side
+	   		 break;
+		case ChatRoomJoiningAcknowledgment:
+			//Client Side
+			break;
+		case ChatRoomLeavingAcknowledgment:
+			//Client Side
+			break;
+		case UserLoggingOutAcknowledgment:
+			//Client Side
+			break;
+		default:
+			break;
+	   	     		
+	   	 }
+	}
+	
+	public void sendUpdate()
+	{
+		 String str = "";
+   		 
+   		 for(int i=0; i<this.chatRoomList.size(); i++)
+   		 {
+   			 str += this.chatRoomList.get(i).toString() + ";;";
+   		 }
+   		 
+   		 if( this.chatRoomList.size() ==0 )
+   		 {
+   			 str = "null";
+   		 }
+   		 
+   		 this.transportDriver.sendMessage(new MessageChat(MessageType.AvailableChatRooms, "server", null, str));
+   		 
+   		 str = "";
+   		 
+   		 for(int i=0; i<this.connectedUserList.size(); i++)
+   		 {
+   			 str += this.connectedUserList.get(i) + ";;";
+   		 }
+   		 
+   		 if( this.connectedUserList.size() ==0 )
+   		 {
+   			 str = "null";
+   		 }
+   		 
+   		 this.transportDriver.sendMessage(new MessageChat(MessageType.ConnectedUsers, "server", null, str));
+	}
+	
+	class ServerMainFrameListener implements WindowListener, ActionListener 
+	{	
+		public void windowActivated (WindowEvent e) 
+        {
+        	
+        }
+        public void windowClosed (WindowEvent e) 
+        {
+        	System.exit(0);
+        }
+        public void windowClosing (WindowEvent e) 
+        {
+            System.out.println("Server closing down");
+        	transportDriver.sendMessage(new MessageChat(MessageType.ServerClosingDown, "server", null, null));
+        }
+        public void windowDeactivated (WindowEvent e) 
+        {
+        	
+        }
+        public void windowDeiconified (WindowEvent e) 
+        {
+        	
+        }
+        public void windowIconified (WindowEvent e) 
+        {
+        	
+        }
+        public void windowOpened (WindowEvent e) 
+        {
+        	
+        }
+        
+		@Override
+		public void actionPerformed(ActionEvent arg0) 
+		{			
+			if(arg0.getActionCommand().equals("Create a Chat Room"))
+			{
+				String newChatRoomName = JOptionPane.showInputDialog(null, "Enter the name of the new Chat room", "Create a chat Room", JOptionPane.QUESTION_MESSAGE);
+				 
+				if(!chatRoomExists(newChatRoomName))
+				{
+					 ChatRoom newChatRoom = new ChatRoom( newChatRoomName, new ArrayList<String>());
+		   			 chatRoomList.add(newChatRoom);
+		   			 
+		   			 if( !connectedUserList.isEmpty())
+		   			 {
+		   				transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomCreationAcknowledgment, "server", connectedUserList.get(0) , "true"));
+		   			 }
+		   			 
+		   		     //create ChatRoomController
+			   		 theServerMainFrame.getChatRoomControllerList().add(new ChatRoomController(newChatRoomName, theServerMainFrame));
+		   			 
+			   		 sendUpdate();
+			   		 
+		   			 updateView();
+				}
+			}
+			else if(arg0.getActionCommand().equals("Delete a Chat Room"))
+			{				 
+				if(!chatRoomList.isEmpty())
+				{
+					String[] chatRoomNames = new String[chatRoomList.size()];
+					for(int i=0; i<chatRoomList.size(); i++)
+					{
+						chatRoomNames[i]=chatRoomList.get(i).getName();
+					}
+					
+					String chatRoomName = (String) JOptionPane.showInputDialog(null, "Enter the name of the Chat room to delete", "Delete a chat Room", JOptionPane.QUESTION_MESSAGE, null, chatRoomNames, chatRoomNames[0]);
+		   			
+					//Supprimer le chatRoomController
+			   		theServerMainFrame.getChatRoomControllerList().remove(getChatRoomIndex(chatRoomName));
+			   		
+					chatRoomList.remove(getChatRoomIndex(chatRoomName));
+					
+					if( !connectedUserList.isEmpty())
+		   			{
+		   				transportDriver.sendMessage(new MessageChat(MessageType.ChatRoomDeleteAcknowledgment, "server", connectedUserList.get(0) , null));
+		   			}
+					
+					sendUpdate();
+					
+		   			updateView();
+				}
+			}
+		}
+    }
+}

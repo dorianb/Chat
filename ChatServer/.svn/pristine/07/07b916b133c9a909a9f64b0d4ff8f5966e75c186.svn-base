@@ -1,0 +1,90 @@
+package ChatServer;
+
+public class ChatRoomController implements TransportReceiver
+{
+     @SuppressWarnings("unused")
+	private ServerMainFrame theServerMainFrame;
+	 private String clusterName;
+     private TransportDriver transportDriver;
+     
+	 public ChatRoomController(String clusterName, ServerMainFrame theServerMainFrame)
+     {
+    	 this.theServerMainFrame = theServerMainFrame;
+		 this.clusterName = clusterName;
+    	 this.transportDriver = new TransportDriver(clusterName, this);
+     }
+	 
+	 //accessors
+	 public String getClusterName()
+	 {
+		 return this.clusterName;
+	 }
+	 public TransportDriver getTransportDriver()
+	 {
+		 return this.transportDriver;
+	 }
+	 
+	 //mutators
+	 public void setClusterName(String clusterName)
+	 {
+		 this.clusterName = clusterName;
+	 }
+	 public void setTransportDriver(TransportDriver transportDriver)
+	 {
+		 this.transportDriver = transportDriver;
+	 }
+	 
+	@Override
+	public void receiveChatMessage(MessageChat message) 
+	{
+		// TODO Auto-generated method stub
+		switch(message.getType())
+		{
+		   	 case ConnectionEstablishment:
+		   		 
+		   		 break;
+			   		 
+		   	 case ConnectionAcknowledgment:
+			   	 break;
+			   	 
+		   	 case ChatRoomsInformationRequest:
+			   		 break;
+			   		 
+		   	 case AvailableChatRooms:
+			   		 break;
+			   		 
+			 case ConnectedUsers:
+			   		 break;
+			   		 
+		 	 case ChatRoomCreationRequest:
+			   		 break;
+			   		 
+		   	 case ChatRoomCreationAcknowledgment:
+			   		 break;
+			   		 
+		   	 case ChatRoomJoiningRequest:
+			   		 break;
+			   		 
+		   	 case ChatRoomLeavingRequest:
+			   		 break;
+			   		 
+		   	 case UserLoggingOut:
+			   		 break;
+			   		 
+		   	 case UserDataMessage:
+			   		 break;
+			   		 
+		   	 case ServerClosingDown:
+			   		 break;
+		case ChatRoomJoiningAcknowledgment:
+			break;
+		case ChatRoomLeavingAcknowledgment:
+			break;
+		case UserLoggingOutAcknowledgment:
+			break;
+		default:
+			break;
+			   	     		
+	   	 }
+	}
+}
